@@ -1,11 +1,28 @@
 package main
 
 import (
-	"log"
+	"flag"
+	"log/slog"
 	"net/http"
+	"os"
 )
 
+type config struct {
+	addr      string
+	staticDir string
+}
+
 func main() {
+	var cfg config
+	flag.StringVar(&cfg.addr, "addr", ":8080", "HTTP network address")
+	flag.StringVar(&cfg.staticDir, "static-dir", "./ui/static", "Path to static assets")
+	flag.Parse()
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelDebug,
+	})) // NewTextHandler also works
+
 	mux := http.NewServeMux()
 
 	// Create a file server which servees files out of the "./ui/static" directory
@@ -23,8 +40,9 @@ func main() {
 	mux.HandleFunc("GET /snippet/create", getSnippetCreate)
 	mux.HandleFunc("POST /snippet/create", postSnippetCreate)
 
-	log.Print("Starting server on :8080")
+	logger.Info("Starting server on", slog.Any("addr", cfg.addr))
 
-	err := http.ListenAndServe(":8080", mux)
-	log.Fatal(err)
+	err := http.ListenAndServe(cfg.addr, mux)
+	logger.Error(err.Error()) // no logger.Fatal()
+	os.Exit(1)
 }
