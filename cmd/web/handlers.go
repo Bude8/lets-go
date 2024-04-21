@@ -13,10 +13,10 @@ import (
 // Represents form data and validation errors for the form fields
 // All fields are exported so they can be read by html/template package when rendering
 type snippetCreateForm struct {
-	Title   string
-	Content string
-	Expires int
-	validator.Validator
+	Title               string `form:"title"`
+	Content             string `form:"content"`
+	Expires             int    `form:"expires"`
+	validator.Validator `form:"-"`
 }
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
@@ -70,24 +70,13 @@ func (app *application) postSnippetCreate(w http.ResponseWriter, r *http.Request
 	// Limit request body size - reading beyond limit will cause err surfaced by r.ParseForm()
 	r.Body = http.MaxBytesReader(w, r.Body, 4096)
 
-	// r.ParseForm() adds any data in POST request bodies to r.PostForm map.
-	err := r.ParseForm()
+	var form snippetCreateForm
+
+	// non-nil pointer required as target decode destination
+	err := app.decodePostForm(r, &form)
 	if err != nil {
 		app.clientError(w, http.StatusBadRequest)
 		return
-	}
-
-	// r.PostForm.Get() always returns string
-	expires, err := strconv.Atoi(r.PostForm.Get("expires"))
-	if err != nil {
-		app.clientError(w, http.StatusBadRequest)
-		return
-	}
-
-	form := snippetCreateForm{
-		Title:   r.PostForm.Get("title"),
-		Content: r.PostForm.Get("content"),
-		Expires: expires,
 	}
 
 	form.CheckField(validator.NotBlank(form.Title), "title", "This field cannot be blank")
